@@ -1,0 +1,67 @@
+# ============================================================
+# Configuration for the final_test regression pipeline
+# All paths are relative to the project root (where main.py is)
+# ============================================================
+
+data:
+  file_path: data/data.csv
+  target: final_test
+
+# ---------- Data cleaning ----------
+cleaning:
+  # Fix inconsistent labels
+  tuition_mapping:
+    "Y": "Yes"
+    "N": "No"
+  cca_fill_value: "None"          # students with no CCA recorded
+  age_mapping:                    # typos: 5 -> 15, 6 -> 16
+    5: 15
+    6: 16
+  # Rows missing any of these are dropped
+  dropna_columns:
+    - final_test
+    - attendance_rate
+  min_age: 0                      # drop rows with age <= min_age
+
+# ---------- Feature engineering ----------
+features:
+  study_band:
+    bins: [-1, 4, 10, 100]        # score peaks at 5-10 hrs per week
+    labels: ["0-4 hrs", "5-10 hrs", "11+ hrs"]
+  low_attendance_threshold: 80    # attendance_rate <= 80  -> low_attendance = 1
+  enough_sleep_threshold: 7       # sleep_hours >= 7       -> enough_sleep = 1
+
+  # Columns fed to the model
+  numerical_features:             # scaled with StandardScaler
+    - class_size
+    - attendance_rate
+    - sleep_hours
+    - low_attendance
+    - enough_sleep
+  nominal_features:               # one-hot encoded
+    - CCA
+    - learning_style
+    - tuition
+    - direct_admission
+    - study_band
+    - number_of_siblings
+
+# ---------- Train / test split ----------
+split:
+  test_size: 0.2                  # 80% train / 20% test
+  random_state: 42
+
+# ---------- Model: Lasso tuned with RandomizedSearchCV ----------
+model:
+  max_iter: 10000                 # Lasso solver iterations
+  random_search:
+    n_iter: 30                    # number of random alphas to try
+    cv: 5                         # k-fold cross-validation on the training set
+    scoring: r2
+    random_state: 42
+    n_jobs: -1                    # use all CPU cores
+  param_distributions:
+    alpha:                        # sampled from a log-uniform distribution
+      low: 0.0001
+      high: 1000
+    fit_intercept: [true, false]
