@@ -19,9 +19,11 @@ cleaning:
     6: 16
   # Rows missing any of these are dropped
   dropna_columns:
-    - final_test
-    - attendance_rate
+    - final_test                  # the target: can't train or test without it
   min_age: 0                      # drop rows with age <= min_age
+  # Missing values in these columns are kept and filled with the TRAINING-set median after the split
+  median_fill_columns:
+    - attendance_rate             # ~5% missing; median (95) used because attendance is skewed towards 100
 
 # ---------- Feature engineering ----------
 features:
@@ -51,17 +53,21 @@ split:
   test_size: 0.2                  # 80% train / 20% test
   random_state: 42
 
-# ---------- Model: Lasso tuned with RandomizedSearchCV ----------
+# ---------- Model: Random forest tuned with RandomizedSearchCV ----------
 model:
-  max_iter: 10000                 # Lasso solver iterations
+  random_state: 42                # makes the forest reproducible
   random_search:
-    n_iter: 30                    # number of random alphas to try
+    n_iter: 20                    # number of random setting combinations to try
     cv: 5                         # k-fold cross-validation on the training set
     scoring: r2
     random_state: 42
     n_jobs: -1                    # use all CPU cores
-  param_distributions:
-    alpha:                        # sampled from a log-uniform distribution
-      low: 0.0001
-      high: 1000
-    fit_intercept: [true, false]
+  param_distributions:            # the search picks one value from each list
+    n_estimators: [100, 200, 300]       # number of trees
+    max_depth: [null, 10, 15, 20]       # how deep each tree can grow (null = no limit)
+    min_samples_leaf: [1, 2, 5, 10]     # smallest group of students a leaf can hold
+    max_features: ["sqrt", 0.5, 1.0]    # share of features each split can look at
+
+# ---------- Outputs saved after training ----------
+output:
+  dir: outputs                    # model, metrics, predictions and run record are saved here
